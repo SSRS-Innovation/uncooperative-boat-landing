@@ -4,8 +4,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import math
 from geopy import distance
-import pyproj           # ungefär lika dåliga resultat med
-import pymap3d as pm    # dessa, pymap3d kanske har lite mer potential
+# import pyproj           # ungefär lika dåliga resultat med
+# import pymap3d as pm    # dessa, pymap3d kanske har lite mer potential
 from ultralytics import YOLO
 from ultralytics import RTDETR
 import torch
@@ -27,18 +27,23 @@ def plot_point(point, angle, length):
 
 
 
-y_model = YOLO('yolov8n.pt')
-# y_model = YOLO('yolov9.pt')
-# y_model = YOLO('yolov6n.yaml') Verkar inte kunna upptäcka båten särskilt bra
+# y_model = YOLO('yolov8n.pt')
+y_model = YOLO('yolov9e.pt')
 # y_model = RTDETR('rtdetr-l.pt')
 
-frame_skips = 12 # out of how many frames we feed to the algorithm, this means that every nth fram is fed to the algorithm
+start_frame_number = 1000 #60*4*25#1700 # 2000 är bra för 0085 # 1700 är bra för 0082
+frame_rate = 25 # frame rate of video 
+frame_skips = 12 # every frame_skips frame gets sent to the algorithm
 april_tags = False
 visualization = True
+
+
+bearing_window = 25 # bases the drone bearing on the angle between every bearing_window points
+drone_bearing = 0 # initial bearing before getting any values
 boat_dims = [14.2, 4.2]
 r_earth = 6378137 # m
 
-video_string = '0082' # 
+video_string = '0084' # 
 capture = cv2.VideoCapture("/mnt/c/plugg/Examensarbete/Videor/Daaataflyg1/DJI_"+video_string+".MP4")
 # capture = cv2.VideoCapture("/mnt/c/plugg/Examensarbete/Videor/Daaataflyg1/DJI_"+video_string+"LRF.MP4") # LRF
 # capture = cv2.VideoCapture("/mnt/c/plugg/Examensarbete/Videor/Daaataflyg1/DJI_"+video_string+"1080p.MP4") # 1080p
@@ -54,7 +59,7 @@ camera_params = (Camera_matrix[0,0], Camera_matrix[1,1], Camera_matrix[0,2], Cam
 # kalman filter variables
 n = 4
 m = 2 
-dt = 0.040*frame_skips # delta t
+dt = (1/frame_rate)*frame_skips # delta t
 xk = np.array([[57.672,0,0,0],
             [0,11.841,0,0],
             [0,0,0,0],
@@ -72,9 +77,8 @@ R = np.eye(n)*0.5          # [m x m] Measurement noise covariance
 
 drone_times, d_lat, d_long, rel_alt =  files_process.read_dji_srt(file_path_camera_srt)
 boat_times, b_lat, b_long, b_alt, b_bearing = files_process.read_phone_file(file_path_phone)
-boat_times, b_lat, b_long = files_process.time_sync(boat_times, drone_times, b_lat, b_long)
+boat_times, b_lat, b_long = files_process.time_sync(boat_times, drone_times, b_lat, b_long) 
 b_interpolated_lat, b_interpolated_long, b_alt_interpolated, b_bearing_interpolated = files_process.interpolate_points(b_lat, b_long, b_alt, b_bearing)
-
 
 
 if (capture.isOpened()== False):  
@@ -89,10 +93,7 @@ at_detector = Detector(families='tag36h11',
                        debug=0)
 
 
-start_frame_number = 1000 #60*4*25#1700 # 2000 är bra för 0085 # 1700 är bra för 0082
 frame_number = start_frame_number
-bearing_window = 25
-drone_bearing = 0 # initial bearing before getting any values
 capture.set(cv2.CAP_PROP_POS_FRAMES, start_frame_number)
 while capture.isOpened():
 
@@ -102,10 +103,9 @@ while capture.isOpened():
         print(drone_times[frame_number], boat_times[int(frame_number/25)]) 
 
 
-    # if frame_number > bearing_window:
-    if frame_number > 2:
-        # drone_bearing = math.atan2(d_long[frame_number]-d_long[frame_number-bearing_window], d_lat[frame_number]-d_lat[frame_number-bearing_window])
-        drone_bearing = math.atan2(b_interpolated_long[frame_number]-d_long[frame_number], b_interpolated_lat[frame_number]-d_lat[frame_number])
+    
+    if frame_number > bearing_window:
+        drone_bearing = math.atan2(d_long[frame_number]-d_long[frame_number-bearing_window], d_lat[frame_number]-d_lat[frame_number-bearing_window])
 
     plot_point((d_long[frame_number],d_lat[frame_number]),drone_bearing,0.0001)
 
@@ -114,7 +114,7 @@ while capture.isOpened():
     if not frame_number % frame_skips == 0: # skip frames to adjust frame rate
         continue
 
-    # This is cheating
+    # This is kind of cheating
     relative_bearing = math.atan2(b_interpolated_long[frame_number]-d_long[frame_number], b_interpolated_lat[frame_number]-d_lat[frame_number])
 
 
