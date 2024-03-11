@@ -86,7 +86,7 @@ arming:set_aux_auth_failed(auth_id, "Ship: no beacon")
 -- current target
 local target_pos = Location()
 local landing_target_pos = Location()
-local landing_target_pos_over = Location()
+--local landing_target_pos_over = Location()
 local current_pos = Location()
 local target_velocity = Vector3f()
 local target_heading = 0.0
@@ -107,14 +107,9 @@ local have_target = false
 -- waypoint for landing (and waypoint parameters)
 local wp_land = mavlink_mission_item_int_t()
 wp_land:command(16)
-wp_land:param2(10) --acceptence radius
+wp_land:param2(0) --acceptence radius
 wp_land:param3(0) --"pass trough"
 
-local air_speed_min = AIRSPEED_MIN:get()
-local AIRSPEED_CRUISE_ORIG = AIRSPEED_CRUISE:get()
---[[
-unused
-]]
 local wp_land_over = mavlink_mission_item_int_t()
 wp_land_over:command(16)
 wp_land_over:param2(0) --acceptemce radius
@@ -122,6 +117,10 @@ wp_land_over:param2(0) --acceptemce radius
 local wp_plane = mavlink_mission_item_int_t()
 wp_plane:command(16)
 wp_plane:param2(10) --acceptence radius
+
+
+local air_speed_min = AIRSPEED_MIN:get()
+local AIRSPEED_CRUISE_ORIG = AIRSPEED_CRUISE:get()
 
 local land_speed = mavlink_mission_item_int_t()
 land_speed:command(178)
@@ -297,29 +296,32 @@ function set_landing_mission()
    --local new_landing_pos_over = Location()
    new_landing_pos = get_landing_position()
 
-   --wp_plane:x(current_pos:lat())
-   --wp_plane:y(current_pos:lat())
-   --wp_plane:z(current_pos:alt()*0.01)
-   --mission:set_item(0, wp_plane)
+   --Dummy waypoint
+   wp_plane:x(current_pos:lat())
+   wp_plane:y(current_pos:lng())
+   wp_plane:z(current_pos:alt()*0.01)
+   mission:set_item(0, wp_plane)
 
    --mission:set_item(1, land_speed)
-   gcs:send_text(0, string.format("Target landing alt (land_alt=%.1fm, lat=%.1f, long=%.1f)", land_alt, new_landing_pos:lat(), new_landing_pos:lng()))
+   --gcs:send_text(0, string.format("Target landing alt (land_alt=%.1fm, lat=%.1f, long=%.1f)", land_alt, new_landing_pos:lat(), new_landing_pos:lng()))
+
    wp_land:x (new_landing_pos:lat())
    wp_land:y (new_landing_pos:lng())
-   wp_land:z (0)
-   mission:set_item(0, wp_land)
-   mission:write()
+   wp_land:z (land_alt)
+   mission:set_item(1, wp_land)
 
+   --[[
    if mission:num_commands() > 0 then
       gcs:send_text(0, string.format("HAS A MISSION"))
    else
       gcs:send_text(0, string.format("DOES NOT HAVE A MISSION"))
    end
 
-   --wp_land_over:x (new_landing_pos_over:lat())
-   --wp_land_over:y (new_landing_pos_over:lng())
-   --wp_land_over:z (0)
-   --mission:set_item(1, wp_land_over)
+   wp_land_over:x (new_landing_pos_over:lat())
+   wp_land_over:y (new_landing_pos_over:lng())
+   wp_land_over:z (0)
+   mission:set_item(3, wp_land_over)
+   ]]
 end
 
 
@@ -444,10 +446,8 @@ function get_wp_alt()
    local vel_plane = Vector3f()
    vel_plane = ahrs:get_velocity_NED()
    local dist_ship_plane = target_no_ofs:get_distance_NED(current_pos)
-   --local vel_xy = Vectro2f()
-   --vel_xy= sq(vel:x()+vel:y())
-   local tti = sq(dist_ship_plane:x()^2+dist_ship_plane:y()^2)/(sq(vel_plane:x()^2+vel_plane:y()^2) - sq(target_velocity:x()^2+target_velocity:y()^2))
-   local dist_to_impact = sq(vel_plane:x()^2+vel_plane:y()^2)*tti
+   local tti = math.sqrt(sq(dist_ship_plane:x())+sq(dist_ship_plane:y()))/(math.sqrt(sq(vel_plane:x()^2+vel_plane:y())) - math.sqrt(sq(target_velocity:x())+sq(target_velocity:y())))
+   local dist_to_impact = math.sqrt(sq(vel_plane:x())+sq(vel_plane:y()))*tti
    local alt = current_pos:alt() * 0.01
    local base_alt = target_pos:alt() * 0.01
    local wp_alt = (alt-base_alt)/dist_to_impact
@@ -497,12 +497,20 @@ update mission used for plane landing
 ]]
 
 function update_landing_mission()
+   local new_landing_pos = Location()
+   local land_alt = get_wp_alt()
+   new_landing_pos = get_landing_position()
+   wp_land:x(new_landing_pos:lat())
+   wp_land:y(new_landing_pos:lng())
+   wp_land:z(land_alt)
+   mission:set_item(1, wp_land)
+   --wp_land:offset(new_landing_pos:lat(), new_landing_pos:lng(), land_alt)
    vehicle:set_mode(MODE_CRUISE)
    vehicle:set_mode(MODE_AUTO)
 end
 
 function update_landing_speed()
-   local landing_speed = math.max(air_speed_min, sq(target_velocity:x()^2+target_velocity:y()^2)+1)
+   local landing_speed = math.max(air_speed_min, math.sqrt(sq(target_velocity:x())+sq(target_velocity:y()))+1)
    AIRSPEED_CRUISE:set(landing_speed)
 end
 -- main update function
@@ -549,10 +557,11 @@ function update()
    elseif vehicle_mode == MODE_AUTO and landing_stage == STAGE_APPROACH then
       current_pos = ahrs:get_position()
       local distance = current_pos:get_distance(target_pos)
-      gcs:send_text(0, "Vehicle mode loop ran")
+      --gcs:send_text(0, "Vehicle mode loop ran")
+
       update_landing_speed()
-      set_landing_mission()
-      if distance < 10 and arming:is_armed() then
+      update_landing_mission()
+      if distance < 15 and arming:is_armed() then
          arming:disarm()
          gcs:send_text(0, "DISAMRING!")
          landing_stage = STAGE_IDLE
@@ -561,8 +570,6 @@ function update()
       if throttle_pos == THROTTLE_HIGH then
          check_approach_abort()
       end
-
-      update_landing_mission()
      
    elseif vehicle_mode == MODE_AUTO and landing_stage ~= STAGE_APPROACH then
       local id = mission:get_current_nav_id()
