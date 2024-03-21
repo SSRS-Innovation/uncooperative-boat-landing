@@ -6,7 +6,7 @@
     </include>
     
   <link name='camera_link'>
-        <pose>0.000000000000000003 0.000000000000000003 -0.150000000000000003 0 0 -1.5707963267948966</pose>
+        <pose>0.000000000000000003 0.000000000000000003 -0.150000000000000003 0 0.34906585 -1.5707963267948966</pose>
         <inertial>
           <mass>0.10000000000000001</mass>
           <inertia>
@@ -43,23 +43,23 @@
         <sensor name='camera' type='camera'>
           <pose>0 0 0 0 0 0</pose>
           <topic>camera</topic>
-          <update_rate>10</update_rate>
+          <update_rate>5</update_rate>
           <enable_metrics>false</enable_metrics>
           <camera name='__default__'>
             <pose>0 0 0 0 0 0</pose>
             <horizontal_fov>1.0469999999999999</horizontal_fov>
             <image>
-              <width>320</width>
-              <height>240</height>
+              <width>1280</width>
+              <height>720</height>
               <format>RGB_INT8</format>
-              <anti_aliasing>4</anti_aliasing>
+              <anti_aliasing>0</anti_aliasing>
             </image>
             <camera_info_topic>__default__</camera_info_topic>
             <trigger_topic></trigger_topic>
             <triggered>false</triggered>
             <clip>
               <near>0.10000000000000001</near>
-              <far>100</far>
+              <far>1000</far>
             </clip>
             <save enabled='false'>
               <path>__default__</path>
@@ -98,6 +98,7 @@
 
 
     <!-- plugins -->
+
     <plugin filename="gz-sim-joint-state-publisher-system"
       name="gz::sim::systems::JointStatePublisher">
     </plugin>

@@ -1,0 +1,181 @@
+<?xml version="1.0"?>
+<sdf version="1.6">
+    <world name="moon">
+    <physics name="1ms" type="ignore">
+      <max_step_size>0.001</max_step_size>
+      <real_time_factor>-1.0</real_time_factor>
+    </physics>
+    
+    <plugin filename="gz-sim-physics-system"
+      name="gz::sim::systems::Physics">
+    </plugin>
+    <plugin filename="gz-sim-user-commands-system"
+      name="gz::sim::systems::UserCommands">
+    </plugin>
+    <plugin filename="gz-sim-scene-broadcaster-system"
+      name="gz::sim::systems::SceneBroadcaster">
+    </plugin>
+    <plugin filename="gz-sim-imu-system"
+      name="gz::sim::systems::Imu">
+    </plugin>
+    <plugin filename="gz-sim-navsat-system"
+      name="gz::sim::systems::NavSat">
+    </plugin>
+
+    <plugin name='gz::sim::systems::Sensors' filename='gz-sim-sensors-system'>
+      <render_engine>ogre2</render_engine>
+    </plugin>
+
+    <scene>
+      <sky></sky>
+      <grid>false</grid>
+      <ambient>1.0 1.0 1.0</ambient>
+      <background>0.8 0.8 0.8</background>
+    </scene>
+
+
+<gui fullscreen='false'>
+      <plugin name='3D View' filename='MinimalScene'>
+        <gz-gui>
+          <title>3D View</title>
+          <property type='bool' key='showTitleBar'>false</property>
+          <property type='string' key='state'>docked</property>
+        </gz-gui>
+        <engine>ogre2</engine>
+        <scene>scene</scene>
+        <ambient_light>0.4 0.4 0.4</ambient_light>
+        <background_color>0.8 0.8 0.8</background_color>
+        <camera_pose>-6 0 6 0 0.5 0</camera_pose>
+      </plugin>
+      <plugin name='Entity context menu' filename='EntityContextMenuPlugin'>
+        <gz-gui>
+          <property key='state' type='string'>floating</property>
+          <property key='width' type='double'>5</property>
+          <property key='height' type='double'>5</property>
+          <property key='showTitleBar' type='bool'>false</property>
+        </gz-gui>
+      </plugin>
+      <plugin name='Scene Manager' filename='GzSceneManager'>
+        <gz-gui>
+          <property key='resizable' type='bool'>false</property>
+          <property key='width' type='double'>5</property>
+          <property key='height' type='double'>5</property>
+          <property key='state' type='string'>floating</property>
+          <property key='showTitleBar' type='bool'>false</property>
+        </gz-gui>
+      </plugin>
+      <plugin name='Interactive view control' filename='InteractiveViewControl'>
+        <gz-gui>
+          <property key='resizable' type='bool'>false</property>
+          <property key='width' type='double'>5</property>
+          <property key='height' type='double'>5</property>
+          <property key='state' type='string'>floating</property>
+          <property key='showTitleBar' type='bool'>false</property>
+        </gz-gui>
+      </plugin>
+      <plugin name='Camera Tracking' filename='CameraTracking'>
+        <gz-gui>
+          <property key='resizable' type='bool'>false</property>
+          <property key='width' type='double'>5</property>
+          <property key='height' type='double'>5</property>
+          <property key='state' type='string'>floating</property>
+          <property key='showTitleBar' type='bool'>false</property>
+        </gz-gui>
+      </plugin>
+      <plugin name='World control' filename='WorldControl'>
+        <gz-gui>
+          <title>World control</title>
+          <property type='bool' key='showTitleBar'>false</property>
+          <property type='bool' key='resizable'>false</property>
+          <property type='double' key='height'>72</property>
+          <property type='double' key='z'>1</property>
+          <property type='string' key='state'>floating</property>
+          <anchors target='3D View'>
+            <line own='left' target='left'/>
+            <line own='bottom' target='bottom'/>
+          </anchors>
+        </gz-gui>
+        <play_pause>true</play_pause>
+        <step>true</step>
+        <start_paused>true</start_paused>
+        <use_event>true</use_event>
+      </plugin>
+      <plugin name='World stats' filename='WorldStats'>
+        <gz-gui>
+          <title>World stats</title>
+          <property type='bool' key='showTitleBar'>false</property>
+          <property type='bool' key='resizable'>false</property>
+          <property type='double' key='height'>110</property>
+          <property type='double' key='width'>290</property>
+          <property type='double' key='z'>1</property>
+          <property type='string' key='state'>floating</property>
+          <anchors target='3D View'>
+            <line own='right' target='right'/>
+            <line own='bottom' target='bottom'/>
+          </anchors>
+        </gz-gui>
+        <sim_time>true</sim_time>
+        <real_time>true</real_time>
+        <real_time_factor>true</real_time_factor>
+        <iterations>true</iterations>
+      </plugin>
+      <plugin name='Image Display' filename='ImageDisplay'>
+        <gz-gui>
+          <property key='state' type='string'>docked</property>
+        </gz-gui>
+        <topic>camera</topic>
+      </plugin>
+      <plugin name='Component inspector' filename='ComponentInspector'>
+        <gz-gui>
+          <property type='string' key='state'>docked</property>
+        </gz-gui>
+      </plugin>
+      <plugin name='Entity tree' filename='EntityTree'>
+        <gz-gui>
+          <property type='string' key='state'>docked</property>
+        </gz-gui>
+      </plugin>
+    </gui>
+
+    <spherical_coordinates>
+      <latitude_deg>-35.363262</latitude_deg>
+      <longitude_deg>149.165237</longitude_deg>
+      <elevation>584</elevation>
+      <heading_deg>0</heading_deg>
+      <surface_model>EARTH_WGS84</surface_model>
+    </spherical_coordinates>
+    
+      <light type="directional" name="sun">
+        <cast_shadows>true</cast_shadows>
+        <pose>0 0 10 0 0.75 0</pose>
+        <diffuse>0.8 0.8 0.8 1</diffuse>
+        <specular>0.0 0.0 0.0 1</specular>
+        <intensity>5</intensity>
+        <attenuation>
+          <range>100</range>
+          <constant>0.9</constant>
+          <linear>0.01</linear>
+          <quadratic>0.001</quadratic>
+        </attenuation>
+        <direction>-0.5 0.1 -0.9</direction>
+      </light>
+
+      <include>
+        <uri>
+          model://Island_local
+        </uri>
+      </include>
+
+    <include>
+      <uri>model://zephyr_with_ardupilot_andcam</uri>
+      <pose degrees="true">1 1 1.422 -90 0 180</pose>
+    </include>
+      
+      <include>
+        <uri>
+          https://fuel.gazebosim.org/1.0/OpenRobotics/models/Coast Water
+        </uri>
+      </include>
+
+      </world>
+  </sdf>
