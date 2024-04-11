@@ -3,11 +3,11 @@ from time import sleep
 import numpy as np
 import matplotlib.pyplot as plt
 from geopy import distance
-from ultralytics import YOLO
-import torch
+#from ultralytics import YOLO
+#import torch
 
 import kalman
-from  boat_positioning import bbox_centerangle, boat_angledim_compensator, boat_cam_angle, boat_distance_gazebo, bbox_centerangle_width
+from  boat_positioning import bbox_centerangle, boat_angledim_compensator, boat_cam_angle, boat_distance_gazebo#, bbox_centerangle_width
 
 from pymavlink import mavutil
 
@@ -16,14 +16,14 @@ from gz.msgs10.image_pb2 import Image
 from gz.msgs10.annotated_axis_aligned_2d_box_v_pb2 import AnnotatedAxisAligned2DBox_V
 from gz.transport13 import Node
 
-print(torch.cuda.is_available())
+#print(torch.cuda.is_available())
 
 # Drone connection
 drone_connection = mavutil.mavlink_connection('udpin:localhost:14551')
 boat_connection = mavutil.mavlink_connection('udpin:localhost:14561') 
 
 
-y_model = YOLO('yolov8n.pt')
+#y_model = YOLO('yolov8n.pt')
 boat_dims = [13.8, 4.4] # vessel A: ca [13.8, 4.4], SSRS Mercedes: [14.2, 4.2]
 r_earth = 6378137 # m
 image_pos = []
