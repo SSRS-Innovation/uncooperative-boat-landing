@@ -26,7 +26,12 @@ def bbox_centerangle(bbox_center, camera_matrix): # function that takes the angl
     bbox_deg_offset = np.rad2deg(angle_radians)
     return bbox_deg_offset
 
-
+def horizontal_angle(FOV_rad, bbox_center, img_size):
+    # assuming x,y as img_size
+    x_len = img_size[0]
+    x_cent = bbox_center[0]
+    rad_angle = (x_cent-(x_len/2))*(FOV_rad/x_len) 
+    return np.rad2deg(rad_angle)
 
 
 # this is not used now, this works ok if we use the rel_bearing

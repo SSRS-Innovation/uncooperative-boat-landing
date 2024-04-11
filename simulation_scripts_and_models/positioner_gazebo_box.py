@@ -7,7 +7,7 @@ from geopy import distance
 #import torch
 
 import kalman
-from  boat_positioning import bbox_centerangle, boat_angledim_compensator, boat_cam_angle, boat_distance_gazebo#, bbox_centerangle_width
+from  boat_positioning import bbox_centerangle, boat_angledim_compensator, boat_cam_angle, boat_distance_gazebo, horizontal_angle
 
 from pymavlink import mavutil
 
@@ -26,6 +26,8 @@ boat_connection = mavutil.mavlink_connection('udpin:localhost:14561')
 #y_model = YOLO('yolov8n.pt')
 boat_dims = [13.8, 4.4] # vessel A: ca [13.8, 4.4], SSRS Mercedes: [14.2, 4.2]
 r_earth = 6378137 # m
+img_size = [1280, 720]
+FOV_rad = 1.047
 image_pos = []
 image_pos_old = image_pos
 clear_var = 0 # just to get decent plots
@@ -37,7 +39,7 @@ camera_params = (Camera_matrix[0,0], Camera_matrix[1,1], Camera_matrix[0,2], Cam
 n = 4
 m = 2 
 
-dt = 0.2 # denna får vi ta fram
+dt = 0.5 # denna får vi ta fram
 xk = np.array([[57.672,0,0,0],
             [0,11.841,0,0],
             [0,0,0,0],
@@ -69,13 +71,9 @@ def on_new_boxes(msg: AnnotatedAxisAligned2DBox_V): # boxes message
         max_corner = np.array([msg.annotated_box[0].box.max_corner.x, msg.annotated_box[0].box.max_corner.y])
 
         bbox_center = (min_corner+max_corner)/2
-        # print(bbox_center)
         # bbox_cent_offset = bbox_centerangle(bbox_center, Camera_matrix) # denna funkar inte just nu
-        bbox_cent_offset = 0 
-        print(bbox_cent_offset)
-        print("======================================")
-        # bbox_cent_offset = width_centerangle(bbox_center, Camera_matrix)
-        # bbox_cent_offset = 0 
+        bbox_cent_offset = horizontal_angle(FOV_rad, bbox_center, img_size)
+
 
         # We must get the bearing data from the drone and also its current position
         # effective_len = boat_angledim_compensator(boat_dims, bbox_cent_offset, b_bearing_interpolated[frame_number], heading, relative_bearing)
@@ -98,6 +96,7 @@ sleep(3) # Waiting for img to be defined
 
 print("Waiting for heartbeat from drone")
 drone_connection.wait_heartbeat()
+print("waiting for heartbeat from boat drone")
 boat_connection.wait_heartbeat()
 print("Heartbeat from system (system %u component %u)" % (drone_connection.target_system, drone_connection.target_component))
 
