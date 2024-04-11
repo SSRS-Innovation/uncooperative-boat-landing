@@ -94,6 +94,8 @@ local current_home = Location()
 local time = 0.0
 local c = 1
 
+param:set_and_save('RTL_ALTITUDE', 20)
+
 -- waypoint for landing (and waypoint parameters)
 local wp_land = mavlink_mission_item_int_t()
 wp_land:command(16)
