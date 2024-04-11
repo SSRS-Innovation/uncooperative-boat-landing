@@ -1,0 +1,131 @@
+<?xml version="1.0"?>
+<sdf version="1.6">
+  <model name="Island_local">
+    <static>true</static>
+    <link name="base_link">
+      <collision name="collision">
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <mesh>
+            <uri>meshes/islandcollision.dae</uri>
+            <scale>1.0 1.0 1.0</scale>
+          </mesh>
+        </geometry>
+      </collision>
+      <collision name="Collider06">
+        <pose>-5.01767 34.0204 0.406 0.0 0.0 0.0</pose>
+        <geometry>
+          <box>
+            <size>4.0 30.0 0.812</size>
+          </box>
+        </geometry>
+      </collision>
+      <collision name="Collider05">
+        <pose>-24.3324 -35.4081 -0.453573 0.0 0.0 -0.785398</pose>
+        <geometry>
+          <box>
+            <size>5.0 5.0 2.0</size>
+          </box>
+        </geometry>
+      </collision>
+      <collision name="Collider04">
+        <pose>10.1337 -1.14462 -0.180153 0.0 0.0 -1.8326</pose>
+        <geometry>
+          <box>
+            <size>5.0 5.0 2.0</size>
+          </box>
+        </geometry>
+      </collision>
+      <collision name="Collider03">
+        <pose>-0.518452 21.4937 -0.180153 0.0 0.0 0.0</pose>
+        <geometry>
+          <box>
+            <size>5.0 5.0 2.0</size>
+          </box>
+        </geometry>
+      </collision>
+      <collision name="Collider02">
+        <pose>-23.1858 39.8327 -0.786334 0.0 0.0 -2.0944</pose>
+        <geometry>
+          <box>
+            <size>5.0 5.0 2.0</size>
+          </box>
+        </geometry>
+      </collision>
+      <collision name="Collider01">
+        <pose>-9.7948 -8.31848 -0.374118 0.0 0.0 0.0</pose>
+        <geometry>
+          <box>
+            <size>5.0 5.0 2.0</size>
+          </box>
+        </geometry>
+      </collision>
+      <visual name= "Island">
+        <geometry>
+          <mesh>
+            <uri>meshes/island.dae</uri>
+            <submesh>
+              <name>Island</name>
+              <center>false</center>
+            </submesh>
+          </mesh>
+        </geometry>
+        <material>
+          <diffuse>1.0 1.0 1.0</diffuse>
+          <specular>0.01 0.01 0.01</specular>
+          <pbr>
+            <metal>
+              <albedo_map>materials/textures/Sand_Albedo.png</albedo_map>
+              <normal_map>materials/textures/Sand_Normal.png</normal_map>
+              <roughness_map>materials/textures/Sand_Roughness.png</roughness_map>
+            </metal>
+          </pbr>
+        </material>
+      </visual>
+      <visual name= "DronePads">
+        <geometry>
+          <mesh>
+            <uri>meshes/island.dae</uri>
+            <submesh>
+              <name>DronePads</name>
+              <center>false</center>
+            </submesh>
+          </mesh>
+        </geometry>
+        <material>
+          <diffuse>1.0 1.0 1.0</diffuse>
+          <specular>0.02 0.02 0.02</specular>
+          <pbr>
+            <metal>
+              <albedo_map>materials/textures/DronePad_Albedo.png</albedo_map>
+              <normal_map>materials/textures/DronePad_Normal.png</normal_map>
+              <roughness_map>materials/textures/DronePad_Roughness.png</roughness_map>
+            </metal>
+          </pbr>
+        </material>
+      </visual>
+      <visual name= "Runway">
+        <geometry>
+          <mesh>
+            <uri>meshes/island.dae</uri>
+            <submesh>
+              <name>Runway</name>
+              <center>false</center>
+            </submesh>
+          </mesh>
+        </geometry>
+        <material>
+          <diffuse>1.0 1.0 1.0</diffuse>
+          <specular>0.02 0.02 0.02</specular>
+          <pbr>
+            <metal>
+              <albedo_map>materials/textures/Runway_Albedo.jpg</albedo_map>
+              <normal_map>materials/textures/Runway_Normal.jpg</normal_map>
+              <roughness_map>materials/textures/Runway_Roughness.jpg</roughness_map>
+            </metal>
+          </pbr>
+        </material>
+      </visual>
+    </link>
+  </model>
+</sdf>
