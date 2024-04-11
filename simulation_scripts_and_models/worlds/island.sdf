@@ -166,10 +166,17 @@
         </uri>
       </include>
 
-    <include>
-      <uri>model://zephyr_with_ardupilot_andcam</uri>
-      <pose degrees="true">1 1 1.422 -90 0 180</pose>
-    </include>
+      <include>
+        <uri>model://zephyr_with_ardupilot_and_boundingboxcam</uri>
+        <pose degrees="true">1 1 1.422 -90 0 180</pose>
+      </include>
+
+      <include>
+        <uri>model://vessel_F</uri>
+        <pose degrees="true">15 10 1.422 0 0 180</pose>
+      </include>
+
+
       
       <include>
         <uri>
