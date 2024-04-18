@@ -332,12 +332,22 @@ function wrap_360(angle)
      return res
  end
 
- function latlng_to_m(lat2, lng2, lat1, lng1)
-   
-   x_diff = (lat2/10^7-lat1/10^7)*111320
-   y_diff = (lng2/10^7-lng1/10^7)*(40075000*math.cos(lat2/10^7*math.pi/180)/360)
-   --gcs:send_text(0, string.format("xdiff = %.1fm, ydiff = %.1fm", x_diff, y_diff))
-   return x_diff, y_diff
+ function latlng_to_m(lat2, lon2, lat1, lon1)
+   local meters_per_degree_lat = 111319.9
+
+   local lat1_rad = math.rad(lat1 / 10000000) -- Convert latitude to radians
+   local lon1_rad = math.rad(lon1 / 10000000) -- Convert longitude to radians
+   local lat2_rad = math.rad(lat2 / 10000000) -- Convert latitude to radians
+   local lon2_rad = math.rad(lon2 / 10000000) -- Convert longitude to radians
+
+
+   local dLat = lat2_rad - lat1_rad
+   local dLon = lon2_rad - lon1_rad
+
+   local y = meters_per_degree_lat * dLat
+   local x = meters_per_degree_lat * dLon * math.cos((lat1_rad + lat2_rad) / 2)
+
+   return x, y
 end
  
  --[[
@@ -407,34 +417,43 @@ function update_mode()
  
  function estimate_target_velocity()
     x_diff, y_diff = latlng_to_m(current_home:lat(), current_home:lng(), last_home:lat(), last_home:lng()) 
-    target_velocity:x(x_diff/time_last_update) -- m/s
+    target_velocity:x(x_diff/time_last_update) -- m/s 
     target_velocity:y(y_diff/time_last_update) -- m/s
     -- zero vertical velocity to reduce impact of ship movement
-    local velocity = math.sqrt(sq(target_velocity:x())+sq(target_velocity:y()))
-
-    gcs:send_text(0, string.format("Estimated velocity = %.1fm/s", velocity))
-
     target_velocity:z(0)
  end
 
- function estimate_target_heading()
-    local lat1 = last_home:lat()
-    local lat2 = last_home:lng()
-    local long1 = current_home:lat()
-    local long2 = current_home:lng()
-    target_heading = math.atan(math.sin(long2-long1)*math.cos(lat2), math.cos(lat1)*math.sin(lat2) - math.sin(lat1)*math.cos(lat2)*math.cos(long2-long1))
- end
+ function estimate_target_bearing()
+   local lat1_rad = math.rad(last_home:lat() / 10000000) -- Convert latitude to radians
+   local lon1_rad = math.rad(last_home:lng() / 10000000) -- Convert longitude to radians
+   local lat2_rad = math.rad(current_home:lat() / 10000000) -- Convert latitude to radians
+   local lon2_rad = math.rad(current_home:lng() / 10000000) -- Convert longitude to radians
+
+   local dlon = lon2_rad - lon1_rad
+   local dlat = lat2_rad - lat1_rad
+
+   local bearing = math.atan(dlon / dlat) -- Calculate the heading using arctan
+   bearing = math.deg(bearing) -- Convert radians to degrees
+
+   -- Adjust the heading based on the quadrant
+       -- Ensure bearing is in the correct quadrant
+   if bearing < 0 then
+      bearing = bearing + 180
+   else
+      bearing = bearing - 180
+   end
+
+   return bearing
+end
 
  -- update target state
  function update_target()
-   target_pos = current_home:copy()
     local heading_deg = target_heading + SHIP_LAND_ANGLE:get()
     local ofs = Vector2f()
     ofs:x(target_velocity:x()*1/20)
     ofs:y(target_velocity:y()*1/20)
+    ofs:rotate(math.rad(heading_deg))
     target_pos:offset(ofs:x(), ofs:y())
-    -- zero vertical velocity to reduce impact of ship movement
-    target_velocity:z(0)
  end
 
  -- get the alt target for holdoff, AMSL
@@ -448,7 +467,6 @@ function get_target_alt()
  
  function get_wp_alt()
     target_no_ofs = target_pos
-    vel = target_velocity
     local vel_plane = Vector3f()
     vel_plane = ahrs:get_velocity_NED()
     local dist_ship_plane = target_no_ofs:get_distance_NED(current_pos)
@@ -456,7 +474,8 @@ function get_target_alt()
     local dist_to_impact = math.sqrt(sq(vel_plane:x())+sq(vel_plane:y()))*tti
     local alt = current_pos:alt() * 0.01
     local base_alt = target_pos:alt() * 0.01
-    local wp_alt = (alt-base_alt)/dist_to_impact
+    local wp_alt = math.min(15, dist_to_impact)
+    gcs:send_text(0, string.format("dti = %.10f, tti = %.10f, wp_alt = %.10f", dist_to_impact, tti, wp_alt))
     return wp_alt
  end
  
@@ -494,11 +513,13 @@ function update_detection()
    if last_home:lat() ~= current_home:lat() or last_home:lng() ~= current_home:lng() then
       time_last_update = c / 20
       estimate_target_velocity()
-      estimate_target_heading()
+      target_heading = estimate_target_bearing()
+      update_landing_speed()
       last_home = current_home:copy()
+      target_pos = current_home:copy()
       c = 1
    else
-      gcs:send_text(0, "if last_home == current_home then loop ran!")
+      update_target()
       c = c + 1
    end
 end
@@ -535,7 +556,8 @@ end
     new_landing_pos = get_landing_position()
     wp_land:x(new_landing_pos:lat())
     wp_land:y(new_landing_pos:lng())
-    wp_land:z(land_alt)
+    --wp_land:z(land_alt)
+    wp_land:z(0)
     mission:set_item(1, wp_land)
     --wp_land:offset(new_landing_pos:lat(), new_landing_pos:lng(), land_alt)
     vehicle:set_mode(MODE_CRUISE)
@@ -543,7 +565,7 @@ end
  end
  
  function update_landing_speed()
-    local landing_speed = math.max(air_speed_min, math.sqrt(sq(target_velocity:x())+sq(target_velocity:y()))+1)
+    local landing_speed = math.min(math.max(air_speed_min, math.sqrt(sq(target_velocity:x())+sq(target_velocity:y()))+1), AIRSPEED_CRUISE_ORIG)
     AIRSPEED_CRUISE:set(landing_speed)
  end
  -- main update function
@@ -553,9 +575,7 @@ end
     end
     current_home = ahrs:get_home():copy()
 
-    update_target()
     update_detection()
-    --ahrs:set_home(target_pos)
     current_pos = ahrs:get_position()
     if not current_pos then
        return
@@ -566,7 +586,7 @@ end
     update_mode()
     update_alt()
     update_auto_offset()
- 
+    gcs:send_text(0, "i ran")
     
  
     local next_WP = vehicle:get_target_location()
@@ -591,9 +611,8 @@ end
        local distance = current_pos:get_distance(target_pos)
        --gcs:send_text(0, "Vehicle mode loop ran")
  
-       update_landing_speed()
        update_landing_mission()
-       if distance < 15 and arming:is_armed() then
+       if distance < 2 and arming:is_armed() then
           arming:disarm()
           gcs:send_text(0, "DISAMRING!")
           landing_stage = STAGE_IDLE
