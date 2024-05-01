@@ -423,7 +423,7 @@ function update_mode()
     target_velocity:z(0)
  end
 
- function estimate_target_bearing()
+ function estimate_target_course()
    local lat1_rad = math.rad(last_home:lat() / 10000000) -- Convert latitude to radians
    local lon1_rad = math.rad(last_home:lng() / 10000000) -- Convert longitude to radians
    local lat2_rad = math.rad(current_home:lat() / 10000000) -- Convert latitude to radians
@@ -432,18 +432,22 @@ function update_mode()
    local dlon = lon2_rad - lon1_rad
    local dlat = lat2_rad - lat1_rad
 
-   local bearing = math.atan(dlon / dlat) -- Calculate the heading using arctan
-   bearing = math.deg(bearing) -- Convert radians to degrees
+   local course = math.atan(dlon,dlat) -- Calculate the heading using arctan
+   course = math.deg(course) -- Convert radians to degrees
 
    -- Adjust the heading based on the quadrant
-       -- Ensure bearing is in the correct quadrant
-   if bearing < 0 then
-      bearing = bearing + 180
-   else
-      bearing = bearing - 180
+       -- Ensure course is in the correct quadrant
+   if dlon < 0 and dlat > 0 then
+      course = course + 90
+   elseif dlon > 0 and dlat > 0 then
+      course = course
+   elseif dlon > 0 and dlat < 0 then
+      course = course - 360
+   elseif dlon < 0 and dlat < 0 then
+      course = course + 360
    end
 
-   return bearing
+   return course
 end
 
  -- update target state
@@ -513,7 +517,7 @@ function update_detection()
    if last_home:lat() ~= current_home:lat() or last_home:lng() ~= current_home:lng() then
       time_last_update = c / 20
       estimate_target_velocity()
-      target_heading = estimate_target_bearing()
+      target_heading = estimate_target_course()
       update_landing_speed()
       last_home = current_home:copy()
       target_pos = current_home:copy()
