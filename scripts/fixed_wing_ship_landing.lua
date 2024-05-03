@@ -92,6 +92,8 @@ local throttle_pos = THROTTLE_HIGH
 local last_home = Location()
 local current_home = Location()
 local time = 0.0
+local x_counter = 1
+local y_counter = 1
 local c = 1
 
 param:set_and_save('RTL_ALTITUDE', 20)
@@ -341,11 +343,11 @@ function wrap_360(angle)
    local lon2_rad = math.rad(lon2 / 10000000) -- Convert longitude to radians
 
 
-   local dLat = lat2_rad - lat1_rad
-   local dLon = lon2_rad - lon1_rad
+   local dlat = lat2_rad - lat1_rad
+   local dlon = lon2_rad - lon1_rad
 
-   local y = meters_per_degree_lat * dLat
-   local x = meters_per_degree_lat * dLon * math.cos((lat1_rad + lat2_rad) / 2)
+   local y = meters_per_degree_lat * dlat
+   local x = meters_per_degree_lat * dlon * math.cos((lat1_rad + lat2_rad) / 2)
 
    return x, y
 end
@@ -417,8 +419,8 @@ function update_mode()
  
  function estimate_target_velocity()
     x_diff, y_diff = latlng_to_m(current_home:lat(), current_home:lng(), last_home:lat(), last_home:lng()) 
-    target_velocity:x(x_diff/time_last_update) -- m/s 
-    target_velocity:y(y_diff/time_last_update) -- m/s
+    target_velocity:x(x_diff*100/time_last_update) -- m/s 
+    target_velocity:y(y_diff*100/time_last_update) -- m/s
     -- zero vertical velocity to reduce impact of ship movement
     target_velocity:z(0)
  end
@@ -428,8 +430,9 @@ function update_mode()
    local lon1_rad = math.rad(last_home:lng() / 10000000) -- Convert longitude to radians
    local lat2_rad = math.rad(current_home:lat() / 10000000) -- Convert latitude to radians
    local lon2_rad = math.rad(current_home:lng() / 10000000) -- Convert longitude to radians
+   --[[
 
-   local dlon = lon2_rad - lon1_rad
+local dlon = lon2_rad - lon1_rad
    local dlat = lat2_rad - lat1_rad
 
    local course = math.atan(dlon,dlat) -- Calculate the heading using arctan
@@ -448,16 +451,55 @@ function update_mode()
    end
 
    return course
+
+   ]]
+    local dLon = lon2_rad - lon1_rad
+    local y = math.sin(dLon) * math.cos(lat2_rad)
+    local x = math.cos(lat1_rad) * math.sin(lat2_rad) - math.sin(lat1_rad) * math.cos(lat2_rad) * math.cos(dLon)
+    local course = math.atan(y / x) * (180 / math.pi)  -- Convert radians to degrees
+
+    -- Adjust angle based on quadrant
+    if x < 0 then
+        course = course + 180
+    elseif y < 0 then
+        course = course + 360
+    end
+
+    if course > 180 then
+      course = course - 360
+    elseif course < -180 then
+      course = course + 360
+    end
+
+    return course
+   
 end
 
  -- update target state
  function update_target()
     local heading_deg = target_heading + SHIP_LAND_ANGLE:get()
     local ofs = Vector2f()
-    ofs:x(target_velocity:x()*1/20)
-    ofs:y(target_velocity:y()*1/20)
-    ofs:rotate(math.rad(heading_deg))
-    target_pos:offset(ofs:x(), ofs:y())
+    target = target_pos:copy()
+    -- Ensure updates a large enough to be performed and make changes in y and x independent
+    if math.abs(target_velocity:x()*1/20*x_counter) > 0.2 then
+      ofs:x(target_velocity:x()*1/20*x_counter)
+      target:offset(0, ofs:x())
+      --gcs:send_text(0,"updated x")
+      x_counter = 1
+    else
+      x_counter = x_counter + 1
+    end
+
+    if math.abs(target_velocity:y()*1/20*y_counter) > 0.2 then
+      ofs:y(target_velocity:y()*1/20*y_counter)
+      target:offset(ofs:y(), 0)
+      --gcs:send_text(0,"updated y")
+      y_counter = 1
+    else
+      y_counter = y_counter + 1
+    end
+
+    return target
  end
 
  -- get the alt target for holdoff, AMSL
@@ -470,16 +512,12 @@ function get_target_alt()
  end
  
  function get_wp_alt()
-    target_no_ofs = target_pos
+    target_no_ofs = target_pos:copy()
+    target_no_ofs:change_alt_frame(ALT_FRAME_ABSOLUTE)
     local vel_plane = Vector3f()
     vel_plane = ahrs:get_velocity_NED()
     local dist_ship_plane = target_no_ofs:get_distance_NED(current_pos)
-    local tti = math.sqrt(sq(dist_ship_plane:x())+sq(dist_ship_plane:y()))/(math.sqrt(sq(vel_plane:x()^2+vel_plane:y())) - math.sqrt(sq(target_velocity:x())+sq(target_velocity:y())))
-    local dist_to_impact = math.sqrt(sq(vel_plane:x())+sq(vel_plane:y()))*tti
-    local alt = current_pos:alt() * 0.01
-    local base_alt = target_pos:alt() * 0.01
-    local wp_alt = math.min(15, dist_to_impact)
-    gcs:send_text(0, string.format("dti = %.10f, tti = %.10f, wp_alt = %.10f", dist_to_impact, tti, wp_alt))
+    local wp_alt = math.min(15, dist_ship_plane/2)
     return wp_alt
  end
  
@@ -495,23 +533,6 @@ function get_target_alt()
        end
     end
  end
- 
- --[[
-   update automatic beacon offsets
- function update_detection()
-   local current_home = ahrs:get_home()
-   if last_home == current_home then
-      gcs:send_text(0,"if last_home == current_home then loop ran!")
-      c = c + 1
-   elseif last_home ~= current_home then
-      time_last_update = c/20
-      estimate_target_velocity()
-      estimate_target_heading()
-      last_home = current_home
-      c = 1
-   end
-end
---]]
 
 function update_detection()
    if last_home:lat() ~= current_home:lat() or last_home:lng() ~= current_home:lng() then
@@ -521,9 +542,12 @@ function update_detection()
       update_landing_speed()
       last_home = current_home:copy()
       target_pos = current_home:copy()
+      --reset counters for velocity estimation and x and y interval updates
       c = 1
+      x_counter = 1
+      y_counter = 1
    else
-      update_target()
+      target_pos = update_target()
       c = c + 1
    end
 end
@@ -534,8 +558,8 @@ end
     end
  
     -- get target without offsets applied
-    target_no_ofs = target_pos
-    vel = target_velocity
+    target_no_ofs = target_pos:copy()
+    vel = target_velocity:copy()
     target_no_ofs:change_alt_frame(ALT_FRAME_ABSOLUTE)
  
     -- setup offsets so target location will be current location
@@ -577,7 +601,7 @@ end
     if SHIP_ENABLE:get() < 1 then
        return
     end
-    current_home = ahrs:get_home():copy()
+    current_home = ahrs:get_home()
 
     update_detection()
     current_pos = ahrs:get_position()
@@ -590,9 +614,7 @@ end
     update_mode()
     update_alt()
     update_auto_offset()
-    gcs:send_text(0, "i ran")
     
- 
     local next_WP = vehicle:get_target_location()
     if not next_WP then
        -- not in a flight mode with a target location
