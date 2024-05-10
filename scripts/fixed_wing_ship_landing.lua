@@ -72,7 +72,6 @@ function bind_param(name)
  -- current target
 local target_pos = Location()
 local landing_target_pos = Location()
---local landing_target_pos_over = Location()
 local current_pos = Location()
 local target_velocity = Vector3f()
 local target_heading = 0.0
@@ -81,6 +80,7 @@ local target_heading = 0.0
 local STAGE_HOLDOFF = 0
 local STAGE_DESCEND = 1
 local STAGE_APPROACH = 2
+local STAGE_LAND = 3
 local STAGE_IDLE = 2
 local landing_stage = STAGE_HOLDOFF
 
@@ -95,6 +95,7 @@ local time = 0.0
 local x_counter = 1
 local y_counter = 1
 local c = 1
+local update_freq = 20
 
 param:set_and_save('RTL_ALTITUDE', 20)
 
@@ -381,7 +382,6 @@ end
            error2 < 2*margin) then
           -- we are on the tangent, switch to QRTL (changed to auto since using missions to land plane)
           landing_stage = STAGE_APPROACH
-          update_landing_speed()
           set_landing_mission() --set mission used for landing
           vehicle:set_mode(MODE_AUTO)
           
@@ -430,29 +430,7 @@ function update_mode()
    local lon1_rad = math.rad(last_home:lng() / 10000000) -- Convert longitude to radians
    local lat2_rad = math.rad(current_home:lat() / 10000000) -- Convert latitude to radians
    local lon2_rad = math.rad(current_home:lng() / 10000000) -- Convert longitude to radians
-   --[[
 
-local dlon = lon2_rad - lon1_rad
-   local dlat = lat2_rad - lat1_rad
-
-   local course = math.atan(dlon,dlat) -- Calculate the heading using arctan
-   course = math.deg(course) -- Convert radians to degrees
-
-   -- Adjust the heading based on the quadrant
-       -- Ensure course is in the correct quadrant
-   if dlon < 0 and dlat > 0 then
-      course = course + 90
-   elseif dlon > 0 and dlat > 0 then
-      course = course
-   elseif dlon > 0 and dlat < 0 then
-      course = course - 360
-   elseif dlon < 0 and dlat < 0 then
-      course = course + 360
-   end
-
-   return course
-
-   ]]
     local dLon = lon2_rad - lon1_rad
     local y = math.sin(dLon) * math.cos(lat2_rad)
     local x = math.cos(lat1_rad) * math.sin(lat2_rad) - math.sin(lat1_rad) * math.cos(lat2_rad) * math.cos(dLon)
@@ -481,8 +459,8 @@ end
     local ofs = Vector2f()
     target = target_pos:copy()
     -- Ensure updates a large enough to be performed and make changes in y and x independent
-    if math.abs(target_velocity:x()*1/20*x_counter) > 0.2 then
-      ofs:x(target_velocity:x()*1/20*x_counter)
+    if math.abs(target_velocity:x()*1/update_freq*x_counter) > 0.2 then
+      ofs:x(target_velocity:x()*1/update_freq*x_counter)
       target:offset(0, ofs:x())
       --gcs:send_text(0,"updated x")
       x_counter = 1
@@ -490,8 +468,8 @@ end
       x_counter = x_counter + 1
     end
 
-    if math.abs(target_velocity:y()*1/20*y_counter) > 0.2 then
-      ofs:y(target_velocity:y()*1/20*y_counter)
+    if math.abs(target_velocity:y()*1/update_freq*y_counter) > 0.2 then
+      ofs:y(target_velocity:y()*1/update_freq*y_counter)
       target:offset(ofs:y(), 0)
       --gcs:send_text(0,"updated y")
       y_counter = 1
@@ -517,6 +495,7 @@ function get_target_alt()
     local vel_plane = Vector3f()
     vel_plane = ahrs:get_velocity_NED()
     local dist_ship_plane = target_no_ofs:get_distance_NED(current_pos)
+    gcs:send_text(0,string.format("dist_ship_plane (%.2f)", dist_ship_plane ))
     local wp_alt = math.min(15, dist_ship_plane/2)
     return wp_alt
  end
@@ -536,10 +515,9 @@ function get_target_alt()
 
 function update_detection()
    if last_home:lat() ~= current_home:lat() or last_home:lng() ~= current_home:lng() then
-      time_last_update = c / 20
+      time_last_update = c/update_freq
       estimate_target_velocity()
       target_heading = estimate_target_course()
-      update_landing_speed()
       last_home = current_home:copy()
       target_pos = current_home:copy()
       --reset counters for velocity estimation and x and y interval updates
@@ -584,10 +562,9 @@ end
     new_landing_pos = get_landing_position()
     wp_land:x(new_landing_pos:lat())
     wp_land:y(new_landing_pos:lng())
-    --wp_land:z(land_alt)
-    wp_land:z(0)
+    wp_land:z(land_alt)
+
     mission:set_item(1, wp_land)
-    --wp_land:offset(new_landing_pos:lat(), new_landing_pos:lng(), land_alt)
     vehicle:set_mode(MODE_CRUISE)
     vehicle:set_mode(MODE_AUTO)
  end
@@ -624,6 +601,7 @@ end
  
     if vehicle_mode == MODE_RTL then
        local holdoff_pos = get_holdoff_position()
+       local de_acc_dist = stopping_distance()
        holdoff_pos:change_alt_frame(ALT_FRAME_ABSOLUTE)
        holdoff_pos:alt(math.floor(get_target_alt()*100))
        vehicle:update_target_location(next_WP, holdoff_pos)
@@ -638,10 +616,8 @@ end
        --gcs:send_text(0, "Vehicle mode loop ran")
  
        update_landing_mission()
-       if distance < 2 and arming:is_armed() then
-          arming:disarm()
-          gcs:send_text(0, "DISAMRING!")
-          landing_stage = STAGE_IDLE
+       if distance < de_acc_dist then
+          landing_stage = STAGE_LAND
        end
  
        if throttle_pos == THROTTLE_HIGH then
@@ -657,16 +633,18 @@ end
           vehicle:update_target_location(next_WP, tpos)
        end
     
-    elseif vehicle_mode == MODE_QLOITER then
-       vehicle:set_velocity_match(target_velocity:xy())
+    elseif vehicle_mode == STAGE_LAND then
+      update_landing_mission()
+      update_landing_speed()
     end
  
  end
  
  function loop()
     update()
+    
     -- run at 20Hz
-    return loop, 20
+    return loop, update_freq
  end
  
  check_parameters()
