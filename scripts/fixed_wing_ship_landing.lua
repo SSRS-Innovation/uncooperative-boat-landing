@@ -8,6 +8,7 @@ local MODE_GUIDED = 15
 local MODE_CRUISE = 7
 
 local ALT_FRAME_ABSOLUTE = 0
+local ALT_FRAME_TERRAIN = 1
 
 -- 3 throttle position
 local THROTTLE_LOW = 0
@@ -458,6 +459,9 @@ end
     local heading_deg = target_heading + SHIP_LAND_ANGLE:get()
     local ofs = Vector2f()
     target = target_pos:copy()
+    target:change_alt_frame(ALT_FRAME_TERRAIN)
+    target:alt(0) --Set the target at the level of the terrain
+    target:change_alt_frame(ALT_FRAME_ABSOLUTE)
     -- Ensure updates a large enough to be performed and make changes in y and x independent
     if math.abs(target_velocity:x()*1/update_freq*x_counter) > 0.2 then
       ofs:x(target_velocity:x()*1/update_freq*x_counter)
@@ -491,12 +495,14 @@ function get_target_alt()
  
  function get_wp_alt()
     target_no_ofs = target_pos:copy()
-    target_no_ofs:change_alt_frame(ALT_FRAME_ABSOLUTE)
+    target_no_ofs:change_alt_frame(ALT_FRAME_TERRAIN)
     local vel_plane = Vector3f()
     vel_plane = ahrs:get_velocity_NED()
     local dist_ship_plane = target_no_ofs:get_distance_NED(current_pos)
-    gcs:send_text(0,string.format("dist_ship_plane (%.2f)", dist_ship_plane ))
-    local wp_alt = math.min(15, dist_ship_plane/2)
+    local xy_dist = math.sqrt(sq(dist_ship_plane:x()+sq(dist_ship_plane:y()))) -- m
+    gcs:send_text(0,string.format("dist_ship_plane (%.2f m)", xy_dist))
+
+    local wp_alt = math.min(15*100, xy_dist*100/2) --cm
     return wp_alt
  end
  
@@ -601,7 +607,6 @@ end
  
     if vehicle_mode == MODE_RTL then
        local holdoff_pos = get_holdoff_position()
-       local de_acc_dist = stopping_distance()
        holdoff_pos:change_alt_frame(ALT_FRAME_ABSOLUTE)
        holdoff_pos:alt(math.floor(get_target_alt()*100))
        vehicle:update_target_location(next_WP, holdoff_pos)
@@ -612,11 +617,13 @@ end
  
     elseif vehicle_mode == MODE_AUTO and landing_stage == STAGE_APPROACH then
        current_pos = ahrs:get_position()
-       local distance = current_pos:get_distance(target_pos)
+       local distance = current_pos:get_distance_NED(target_pos)
+       local xy_dist = math.sqrt(sq(distance:x()+sq(distance:y()))) -- m
+       local de_acc_dist = stopping_distance()
        --gcs:send_text(0, "Vehicle mode loop ran")
  
        update_landing_mission()
-       if distance < de_acc_dist then
+       if xy_dist < de_acc_dist then
           landing_stage = STAGE_LAND
        end
  
@@ -633,8 +640,9 @@ end
           vehicle:update_target_location(next_WP, tpos)
        end
     
-    elseif vehicle_mode == STAGE_LAND then
+    elseif vehicle_mode == MODE_AUTO and vehicle_mode == STAGE_LAND then
       update_landing_mission()
+      gcs:send_text(0, "Final landing stage")
       update_landing_speed()
     end
  
