@@ -106,10 +106,6 @@ wp_land:command(16)
 wp_land:param2(0) --acceptence radius
 wp_land:param3(0) --"pass trough"
 
-local wp_land_over = mavlink_mission_item_int_t()
-wp_land_over:command(16)
-wp_land_over:param2(0) --acceptemce radius
-
 local wp_plane = mavlink_mission_item_int_t()
 wp_plane:command(16)
 wp_plane:param2(10) --acceptence radius
@@ -265,21 +261,17 @@ function get_land_airspeed()
  end
 
  function get_landing_position()
-
+    local overshoot_offset = 0
+    if landing_stage == STAGE_LAND then
+      overshoot_offset = 50 --m
+    end
     local heading_deg = target_heading + SHIP_LAND_ANGLE:get()
-    
     local ofs = Vector2f()
-    --local ofs_over = Vector2f()
-    ofs:x(0)
+    ofs:x(0 + overshoot_offset)
     ofs:y(0)
-    --ofs_over:x(100)
-    --ofs_over:y(0)
     ofs:rotate(math.rad(heading_deg))
-    --ofs_over:rotate(math.rad(heading_deg))
     local landing_target = target_pos:copy()
-    --local landing_target_over = target_pos:copy()
     landing_target:offset(ofs:x(), ofs:y())
-    --landing_target_over:offset(ofs_over:x(), ofs_over:y())
  
     return landing_target
  end
@@ -289,7 +281,6 @@ function get_land_airspeed()
     current_pos = ahrs:get_position()
     local new_landing_pos = Location()
     local land_alt = get_wp_alt()
-    --local new_landing_pos_over = Location()
     new_landing_pos = get_landing_position()
  
     --Dummy waypoint
@@ -305,19 +296,7 @@ function get_land_airspeed()
     wp_land:y (new_landing_pos:lng())
     wp_land:z (land_alt)
     mission:set_item(1, wp_land)
-    
-   --[[
-   if mission:num_commands() > 0 then
-      gcs:send_text(0, string.format("HAS A MISSION"))
-   else
-      gcs:send_text(0, string.format("DOES NOT HAVE A MISSION"))
-   end
-
-   wp_land_over:x (new_landing_pos_over:lat())
-   wp_land_over:y (new_landing_pos_over:lng())
-   wp_land_over:z (0)
-   mission:set_item(3, wp_land_over)
-   ]]
+   
 end
 
 function wrap_360(angle)
@@ -494,15 +473,23 @@ function get_target_alt()
  end
  
  function get_wp_alt()
+   --[[
     target_no_ofs = target_pos:copy()
     target_no_ofs:change_alt_frame(ALT_FRAME_TERRAIN)
     local vel_plane = Vector3f()
     vel_plane = ahrs:get_velocity_NED()
     local dist_ship_plane = target_no_ofs:get_distance_NED(current_pos)
-    local xy_dist = math.sqrt(sq(dist_ship_plane:x()+sq(dist_ship_plane:y()))) -- m
-    gcs:send_text(0,string.format("dist_ship_plane (%.2f m)", xy_dist))
+    local xy_dist = math.sqrt(sq(dist_ship_plane:x())+sq(dist_ship_plane:y())) -- m
+    gcs:send_text(0,string.format("dist_ship_plane (%.2f m, y dist %.2f, x dist %.2f)", xy_dist, dist_ship_plane:y(), dist_ship_plane:x()))
 
     local wp_alt = math.min(15*100, xy_dist*100/2) --cm
+    --]]
+    if landing_stage == STAGE_APPROACH then
+      wp_alt = 15
+    elseif landing_stage == STAGE_LAND then
+      wp_alt = 1
+    end
+
     return wp_alt
  end
  
@@ -576,6 +563,7 @@ end
  end
  
  function update_landing_speed()
+   gcs:send_text(0,string.format("x y velocity (%.2f,%.2f,%.2f)", target_velocity:x(), target_velocity:y(), math.sqrt(sq(target_velocity:x())+sq(target_velocity:y()))+1))
     local landing_speed = math.min(math.max(air_speed_min, math.sqrt(sq(target_velocity:x())+sq(target_velocity:y()))+1), AIRSPEED_CRUISE_ORIG)
     AIRSPEED_CRUISE:set(landing_speed)
  end
@@ -618,8 +606,8 @@ end
     elseif vehicle_mode == MODE_AUTO and landing_stage == STAGE_APPROACH then
        current_pos = ahrs:get_position()
        local distance = current_pos:get_distance_NED(target_pos)
-       local xy_dist = math.sqrt(sq(distance:x()+sq(distance:y()))) -- m
-       local de_acc_dist = stopping_distance()
+       local xy_dist = math.sqrt(sq(distance:x())+sq(distance:y())) -- m
+       local de_acc_dist = 50 --m
        --gcs:send_text(0, "Vehicle mode loop ran")
  
        update_landing_mission()
@@ -630,20 +618,14 @@ end
        if throttle_pos == THROTTLE_HIGH then
           check_approach_abort()
        end
-      
-    elseif vehicle_mode == MODE_AUTO and landing_stage ~= STAGE_APPROACH then
-       local id = mission:get_current_nav_id()
-       if id == NAV_VTOL_TAKEOFF or id == NAV_TAKEOFF then
-          vehicle:set_velocity_match(target_velocity:xy())
-          local tpos = current_pos:copy()
-          tpos:alt(next_WP:alt())
-          vehicle:update_target_location(next_WP, tpos)
-       end
     
-    elseif vehicle_mode == MODE_AUTO and vehicle_mode == STAGE_LAND then
+    elseif vehicle_mode == MODE_AUTO and landing_stage == STAGE_LAND then
+      if throttle_pos == THROTTLE_HIGH then
+         check_approach_abort()
+      end
+      update_landing_speed()
       update_landing_mission()
       gcs:send_text(0, "Final landing stage")
-      update_landing_speed()
     end
  
  end
