@@ -67,11 +67,8 @@ def positioner():
         return img
 
     def on_new_boxes(msg: AnnotatedAxisAligned2DBox_V): # boxes message 
-        # print(msg.annotated_box)
-        print("on new boxes ran")
-        # print(msg.annotated_box)
-        # print(msg.annotated_box[0].label)
-        print(msg.annotated_box)
+        #print("on new boxes ran")
+        #print(msg.annotated_box)
         if msg.annotated_box:
             min_corner = np.array([msg.annotated_box[0].box.min_corner.x, msg.annotated_box[0].box.min_corner.y])
             max_corner = np.array([msg.annotated_box[0].box.max_corner.x, msg.annotated_box[0].box.max_corner.y])

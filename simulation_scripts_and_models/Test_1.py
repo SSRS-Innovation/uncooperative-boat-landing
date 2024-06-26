@@ -48,26 +48,27 @@ def tester():
     print("Heartbeat from system (system %u component %u)" % (drone_connection.target_system, drone_connection.target_component))
     print("heartbeats recieved in TEST")
 
-    # print(dir(boat_connection))
-    # print(dir(drone_connection))
-    # exit()
-    # setting params and rebooting
-    sleep(1)
-    drone_connection.mav.param_set_send(drone_connection.target_system, drone_connection.target_component, b'scr_enable', 1, 1)
-    sleep(1)
-    # drone_connection.mav.param_set_send(drone_connection.target_system, drone_connection.target_component, b'ftp', 1, 1)
-    sleep(1)
-    # drone_connection.mav.param_set_send(drone_connection.target_system, drone_connection.target_component, b'scr_heap_size', 100000, 1)
+    def set_parameter_drone(param_id, param_value, param_type):
+    # Create the MAVLink parameter set message
+        drone_connection.mav.param_set_send(
+        drone_connection.target_system,
+        drone_connection.target_component,
+        param_id.encode('utf-8'),
+        param_value,
+        param_type
+        )
+        ack = drone_connection.recv_match(type='PARAM_VALUE', blocking=True, timeout=5)
+        print(f'Successfully set {param_id} to {param_value}')
+
+    set_parameter_drone('SCR_ENABLE', 1, mavutil.mavlink.MAV_PARAM_TYPE_UINT8)
 
     #reboot
     drone_connection.mav.command_long_send(boat_connection.target_system, boat_connection.target_component, mavutil.mavlink.MAV_CMD_PREFLIGHT_REBOOT_SHUTDOWN ,0,1,0,0,0,0,0,0)
-    print("should be rebooting")
-    sleep(10)
+    print("rebooting")
+    sleep(20)
+    set_parameter_drone('SHIP_ENABLE', 1, mavutil.mavlink.MAV_PARAM_TYPE_UINT8)
+    set_parameter_drone('SERVO3_FUNCTION', 0 , mavutil.mavlink.MAV_PARAM_TYPE_UINT8)
 
-    drone_connection.mav.param_set_send(drone_connection.target_system, drone_connection.target_component, b'ship_enable', 1, 1)
-
-
-    
     # -35.36202481 149.16409768
     latitude = 11.294003
     longitude = 57.602939
