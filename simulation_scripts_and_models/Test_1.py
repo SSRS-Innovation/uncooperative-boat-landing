@@ -18,28 +18,19 @@ def tester():
 
     flightstage = 0
     boatstage = 0
-    # wp = mavwp.MAVWPLoader()
 
-    # input_fd, output_fd = os.pipe()
     command_list_drone = "sim_vehicle.py -v ArduPlane -f gazebo-zephyr --model JSON --map --console --out 0.0.0.0:14551 --out 0.0.0.0:14552 -i0 -L Kattegatt".split()
     command_list_boat = "sim_vehicle.py -v ArduCopter -f gazebo-iris --model JSON --map --console --out 0.0.0.0:14561 --out 0.0.0.0:14562 -i1 -L Kattegatt".split()
-    # gazebo_positioner = "/bin/python positioner_gazebo_box.py".split()
     gazebo_sim = "gz sim island.sdf -r".split()
-    # exit()
 
     Popen(gazebo_sim)
-    # sleep(5) # letting gazebo start
+    sleep(1)
     drone_process = Popen(command_list_drone, stdin=PIPE)
+    sleep(1)
     boat_process = Popen(command_list_boat, stdin=PIPE)
-
-    # Process(target=Popen(gazebo_positioner)).start()
-    # gazebo_process = Popen(gazebo_positioner)
 
     drone_connection = mavutil.mavlink_connection('udpin:localhost:14551')
     boat_connection = mavutil.mavlink_connection('udpin:localhost:14561') 
-
-    # sleep(20)
-    
 
     print("Waiting for heartbeat from drone")
     drone_connection.wait_heartbeat()
