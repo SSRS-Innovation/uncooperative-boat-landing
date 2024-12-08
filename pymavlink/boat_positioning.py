@@ -15,12 +15,14 @@ def boat_cam_angle(boat_bearing, tag, camera_matrix):
     return tag_deg_offset # rad2deg korrekt här?
 
 def bbox_centerangle(bbox_center, camera_matrix):
-    x0, y0 = [camera_matrix[0,2],camera_matrix[1,2]]
+    x0, y0 = [camera_matrix[0,2],camera_matrix[1,2]] # camera optical center
     invcam = np.linalg.inv(camera_matrix)
     l_center = invcam.dot([x0, y0, 1.0])
-    xb, yb = bbox_center
+    # print(l_center)
+    xb, yb = bbox_center    
     # print([yb, xb, 1])
     l_bbox = invcam.dot([yb, xb, 1])
+    # print(l_bbox)
     cos_angle = l_center.dot(l_bbox) / (np.linalg.norm(l_center) * np.linalg.norm(l_bbox))
     angle_radians = np.arccos(cos_angle)
     bbox_deg_offset = np.rad2deg(angle_radians)
@@ -45,14 +47,14 @@ def boat_angledim_compensator(boat_dims, boat_pic_angle, boat_bearing, drone_bea
 
     b_length, b_width = boat_dims
     side_length = abs(b_width*math.cos(np.deg2rad(v)))+abs(b_length*math.sin(np.deg2rad(v)))# this length is not taking the perspective distorsions into account
-    print(side_length)
+    # print(side_length)
     return side_length
 
 def boat_distance(effective_len, camera_matrix, bbox):
     # boat dimensions in [length,width]
     # boat bearing in degrees
 
-    effective_len = 4.2
+    effective_len = 4.2 # bra grej
     compen_len = effective_len #4.2 # 
     
     focal_l = camera_matrix[0][0] # behöver antagligen fixa så att kamera matrisen får formen: [f 0 0; 0 f 0; x x 1 ] tror inte det då pajjar man uplösnings kompensatinone bara
