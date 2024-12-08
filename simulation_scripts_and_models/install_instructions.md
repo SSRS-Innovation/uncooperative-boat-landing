@@ -14,7 +14,7 @@ Git install instructions: https://github.com/git-guides/install-git
 3. `git version`  # Not necessary, this is just to verify that the installation is successful
 
 # Ardupilot 
-Here is the ardupilot instructions for different operating systems: https://ardupilot.org/dev/docs/building-the-code.html\
+Here is the ardupilot instructions for different operating systems: https://ardupilot.org/dev/docs/building-the-code.html
 This guide will focus on WSL running Ubuntu 22.04.3 LTS. This should also work for ordinary Ubuntu.
 
 ## Install Ardupilot
@@ -63,18 +63,17 @@ Following these instructions for gazebo harmonic: https://github.com/ArduPilot/a
 1. `pip install geopy`
 2. `python3 main.py` # This should run the first test scenario.
 
+## In case of Errors
+# Waf error 
+1. navigate to ardupilot installation folder
+2. `./waf clean`
+# in case of Protobuf error
+pip install protobuf==3.12.4
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+# How to:s
+## How to change camera properties 
+This example will be for the model: zephyr_with_ardupilot_and_boundingboxcam
+1. Navigate to the folder where the models are it should be ../ardupilot_gazebo/models/zephyr_with_ardupilot_and_boundingboxcam
+2. Open the model.sdf file
+3. Under the sensor: <sensor name="boundingbox_camera" type="boundingbox_camera"> you can change resolution, FOV, clipping distance and refresh rate of the simulated camera sensor.  
 
