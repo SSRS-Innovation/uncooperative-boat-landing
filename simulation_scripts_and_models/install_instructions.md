@@ -6,6 +6,7 @@ Setup WSL: https://learn.microsoft.com/en-us/windows/wsl/install
 then go to store and install ubuntu or do it via commands. This guide is tested for Ubuntu 22.04.3 LTS from the Microsoft store.
 1. Start your ubuntu terminal
 2. Follow this guide and enter the commands
+3. go to the home directory if not already there: `cd ~`
 
 ## Install git if not installed 
 Git install instructions: https://github.com/git-guides/install-git
